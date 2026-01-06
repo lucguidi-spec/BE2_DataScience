@@ -13,4 +13,4 @@ data/*.jsonl
 data/*.tsv
 data/*.pkl
 data/submission_*.csv
-.txt
+*.txt
