@@ -1,0 +1,16 @@
+# ignoré par GIT
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+data/*.jsonl
+data/*.tsv
+data/*.pkl
+data/submission_*.csv
+.txt
