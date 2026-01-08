@@ -14,7 +14,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 EMB_FILE = os.path.join(DATA_DIR, "corpus_embeddings_all_MiniLM_L6_v2.pkl")
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-
+# Fonctions pour le moteur dense et son évaluation
 def encode_query(text: str, model: SentenceTransformer) -> np.ndarray:
     return model.encode(
         text,
@@ -22,7 +22,7 @@ def encode_query(text: str, model: SentenceTransformer) -> np.ndarray:
         convert_to_numpy=True,
     )
 
-
+# Classement des candidats pour une requête donnée
 def rank_candidates_for_query_dense(
     query_id: str,
     qrels: Dict[str, Dict[str, int]],
@@ -34,17 +34,19 @@ def rank_candidates_for_query_dense(
     top_k: int | None = None,
 ) -> List[Tuple[str, int, float, str]]:
 
-
+    # Récupération de la requête
     q = queries.get(query_id)
     if q is None:
         return []
 
+    # Texte de la requête
     text = q.get("text") or q.get("title") or ""
     if not text:
         return []
 
     q_emb = encode_query(text, model)
 
+    # Calcul des similarités cosinus avec les candidats
     scored: List[Tuple[str, int, float, str]] = []
     for cid, label in qrels[query_id].items():
         idx = doc_index.get(cid)
@@ -55,12 +57,13 @@ def rank_candidates_for_query_dense(
         title = corpus.get(cid, {}).get("title") or ""
         scored.append((cid, label, score, title))
 
+    # Tri par score décroissant
     scored.sort(key=lambda x: x[2], reverse=True)
     if top_k is not None:
         scored = scored[:top_k]
     return scored
 
-
+# Évaluation du moteur dense sur un ensemble de jugements de pertinence  
 def evaluate_dense_on_qrels(
     qrels: Dict[str, Dict[str, int]],
     queries: Dict[str, Dict],
@@ -71,7 +74,7 @@ def evaluate_dense_on_qrels(
     example_query_id: str | None = None,
 ) -> None:
 
-
+    # Exemple de classement pour une requête
     if example_query_id is None:
         example_query_id = next(iter(qrels.keys()))
 
@@ -97,6 +100,7 @@ def evaluate_dense_on_qrels(
     recalls: List[float] = []
     f1s: List[float] = []
 
+    # Itération sur les requêtes
     for qid, cand_dict in qrels.items():
         ranked = rank_candidates_for_query_dense(
             qid,
@@ -111,6 +115,7 @@ def evaluate_dense_on_qrels(
         if not ranked:
             continue
 
+        # Extraction des labels et scores
         y_true = [label for _, label, _, _ in ranked]
         y_scores = [score for _, _, score, _ in ranked]
 
@@ -138,6 +143,7 @@ def evaluate_dense_on_qrels(
         print("Aucune requête exploitable eval")
         return
 
+    # Calcul des métriques globales
     mean_prec = float(np.mean(precisions))
     mean_rec = float(np.mean(recalls))
     mean_f1 = float(np.mean(f1s))

@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
 
-
+# Fonction pour extraire l'identifiant d'un objet JSON
 def _extract_id(obj: Dict[str, Any]) -> str:
 
     for key in ["_id", "id", "paper_id", "doc_id", "document_id"]:
@@ -13,7 +13,7 @@ def _extract_id(obj: Dict[str, Any]) -> str:
         f"clés disponibles  {list(obj.keys())}"
     )
 
-
+# Fonction pour charger un corpus à partir d'un fichier JSON
 def load_corpus(file_path: str) -> Dict[str, Dict[str, Any]]:
 
     corpus: Dict[str, Dict[str, Any]] = {}
@@ -30,7 +30,7 @@ def load_corpus(file_path: str) -> Dict[str, Dict[str, Any]]:
 
     return corpus
 
-
+# Fonction pour charger des requêtes à partir d'un fichier JSON
 def load_queries(file_path: str) -> Dict[str, Dict[str, Any]]:
 
     queries: Dict[str, Dict[str, Any]] = {}
@@ -47,11 +47,12 @@ def load_queries(file_path: str) -> Dict[str, Dict[str, Any]]:
 
     return queries
 
-
+# Fonction pour charger des jugements de pertinence à partir d'un fichier TSV
 def load_qrels(file_path: str) -> Dict[str, Dict[str, int]]:
 
     qrels: Dict[str, Dict[str, int]] = {}
 
+    # Lecture du fichier ligne par ligne
     with open(file_path, "r", encoding="utf-8") as f:
         first_line = True
         for line in f:
@@ -67,11 +68,13 @@ def load_qrels(file_path: str) -> Dict[str, Dict[str, int]]:
                 if parts == ["query-id", "corpus-id", "score"]:
                     continue
 
+            # Vérification du format de la ligne
             if len(parts) != 3:
                 raise ValueError(f"Ligne mal formée dans {file_path}  {line}")
 
             qid, cid, rel_str = parts
 
+            # Conversion du score en entier
             try:
                 rel = int(rel_str)
             except ValueError as exc:
@@ -79,6 +82,7 @@ def load_qrels(file_path: str) -> Dict[str, Dict[str, int]]:
                     f"Score non entier dans {file_path}  {line}"
                 ) from exc
 
+            # Ajout du jugement de pertinence au dictionnaire
             if qid not in qrels:
                 qrels[qid] = {}
 

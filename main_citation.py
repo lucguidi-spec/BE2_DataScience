@@ -15,6 +15,7 @@ def main():
     corpus_path = os.path.join(DATA_DIR, "corpus.jsonl")
     queries_path = os.path.join(DATA_DIR, "queries.jsonl")
 
+    # Vérifier l'existence des fichiers de données
     if not os.path.exists(corpus_path):
         print(f"Fichier corpus manquant  {corpus_path}")
         return
@@ -33,6 +34,7 @@ def main():
     print("\nConstruction du graphe de citations (corpus + requêtes)")
     G = build_citation_graph(corpus, queries, include_query_edges=True)
 
+    # Afficher les statistiques du graphe
     print("\nStatistiques du graphe")
     stats = basic_graph_stats(G)
     print(f"Nombre de nœuds      {int(stats['num_nodes'])}")
@@ -44,6 +46,7 @@ def main():
     print(f"Degré sortant var    {stats['out_degree_var']:.3f}")
 
     print("\nCalcul des indicateurs de centralité")
+    # Calculer et afficher les mesures de centralité
     compute_centrality_measures(
         G,
         corpus=corpus,

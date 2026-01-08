@@ -16,7 +16,10 @@ INPUT_FILE = os.path.join(DATA_DIR, "sample_submission.csv")
 # fichier crée
 OUTPUT_FILE = os.path.join(DATA_DIR, "submission_dense.csv")
 
+# chemin pour stocker/charger les embeddings du corpus
 EMB_PATH = os.path.join(DATA_DIR, "corpus_embeddings_all_MiniLM_L6_v2.pkl")
+
+# modèle à utiliser
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
@@ -45,6 +48,7 @@ def main():
     print(f"nb de documents  {len(corpus)}")
     print(f"nb de requêtes   {len(queries)}")
 
+    # Lecture du fichier Kaggle sample_submission.csv
     print(f"\nLecture du fichier Kaggle  {INPUT_FILE}")
     rows = []
     with open(INPUT_FILE, "r", encoding="utf-8", newline="") as f:
@@ -55,6 +59,7 @@ def main():
                 raise ValueError(
                     f"Colonne manquante dans sample_submission.csv  {field}"
                 )
+        # lecture des lignes    
         for r in reader:
             row_id = r["RowId"]
             qid = r["query-id"]
@@ -63,6 +68,7 @@ def main():
 
     print(f"Nombre de lignes lues (sans l en tête)  {len(rows)}")
 
+    # Construction ou chargement des embeddings du corpus
     print("\nChargement/construction des embeddings du corpus")
     doc_ids, embeddings = build_or_load_embeddings(
         corpus,
@@ -97,18 +103,19 @@ def main():
                         normalize_embeddings=True,
                         convert_to_numpy=True,
                     )
-                    query_emb_cache[qid] = emb
+                    query_emb_cache[qid] = emb # mise en cache
 
-        q_emb = query_emb_cache[qid]
+        q_emb = query_emb_cache[qid] # embedding de la requête
 
         # embedding du document
         idx = doc_index.get(cid)
         if q_emb is None or idx is None:
-            score = 0.0
+            score = 0.0 # pas de correspondance
         else:
             d_emb = embeddings[idx]
             score = float(d_emb @ q_emb)
 
+        # Préparation de la ligne de sortie
         out_rows.append(
             {
                 "RowId": row_id,
@@ -118,6 +125,7 @@ def main():
             }
         )
 
+    # Création du fichier de soumission
     print(f"\nÉcriture du fichier de soumission CSV  {OUTPUT_FILE}")
     with open(OUTPUT_FILE, "w", encoding="utf-8", newline="") as f:
         fieldnames = ["RowId", "query-id", "corpus-id", "score"]

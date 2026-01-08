@@ -16,12 +16,12 @@ from src.vectorizer_baseline import (
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
-
+# Construire un index de documents pour un accès rapide
 def build_doc_index(doc_ids):
     
     return {doc_id: i for i, doc_id in enumerate(doc_ids)}
 
-
+# Classer les candidats pour une requête donnée en utilisant BoW ou TF-IDF
 def rank_candidates_for_query_bow(query_text, candidate_ids, vectorizer, X, doc_index):
     
     if not candidate_ids:
@@ -29,6 +29,7 @@ def rank_candidates_for_query_bow(query_text, candidate_ids, vectorizer, X, doc_
 
     q_vec = vectorizer.transform([query_text])
 
+    # Récupérer les indices des documents candidats
     rows = []
     row_cids = []
     for cid in candidate_ids:
@@ -40,13 +41,14 @@ def rank_candidates_for_query_bow(query_text, candidate_ids, vectorizer, X, doc_
     if not rows:
         return []
 
+    # Extraire les vecteurs des documents candidats
     X_sub = X[rows]
     sims = cosine_similarity(q_vec, X_sub).ravel()
 
     ranked = sorted(zip(row_cids, sims), key=lambda x: x[1], reverse=True)
     return ranked
 
-
+# Évaluer le moteur creux sur un ensemble de qrels
 def evaluate_bow_on_qrels(queries, qrels, X, vectorizer, doc_index):
     
     per_query_precisions = []
@@ -56,20 +58,24 @@ def evaluate_bow_on_qrels(queries, qrels, X, vectorizer, doc_index):
     all_scores = []
     all_labels = []
 
+    # Itérer sur chaque requête dans les qrels
     for qid, cand_dict in qrels.items():
         query = queries.get(qid)
         if query is None:
             continue
 
+        # Extraire le texte de la requête
         query_text = query.get("text") or query.get("title") or ""
         candidate_ids = list(cand_dict.keys())
 
+        # Classer les candidats pour la requête
         ranked = rank_candidates_for_query_bow(
             query_text, candidate_ids, vectorizer, X, doc_index
         )
         if not ranked:
             continue
 
+        # Préparation des étiquettes et des scores pour le calcul des métriques
         scores = []
         labels = []
         for cid, score in ranked:
@@ -88,14 +94,17 @@ def evaluate_bow_on_qrels(queries, qrels, X, vectorizer, doc_index):
         per_query_recalls.append(r)
         per_query_f1.append(f1)
 
+        # Collecte des scores et des étiquettes pour le calcul de l'AUC
         if len(np.unique(y_true)) > 1:
             all_labels.extend(y_true.tolist())
             all_scores.extend(y_scores.tolist())
 
+    # Calcule des métriques
     mean_precision = float(np.mean(per_query_precisions)) if per_query_precisions else 0.0
     mean_recall = float(np.mean(per_query_recalls)) if per_query_recalls else 0.0
     mean_f1 = float(np.mean(per_query_f1)) if per_query_f1 else 0.0
 
+    # Calculer de l'AUC si possible
     if all_labels and len(set(all_labels)) > 1:
         auc = roc_auc_score(all_labels, all_scores)
     else:
@@ -103,7 +112,7 @@ def evaluate_bow_on_qrels(queries, qrels, X, vectorizer, doc_index):
 
     return mean_precision, mean_recall, mean_f1, auc
 
-
+# Recherche en texte libre sur tout le corpus
 def search_free_text(
     query_text,
     vectorizer,
@@ -112,7 +121,7 @@ def search_free_text(
     corpus,
     top_k=10,
 ):
- 
+    # Gérer le cas d'une requête vide
     if not query_text:
         return []
 
@@ -131,12 +140,12 @@ def search_free_text(
 
     return results
 
-
 def main():
     corpus_path = os.path.join(DATA_DIR, "corpus.jsonl")
     queries_path = os.path.join(DATA_DIR, "queries.jsonl")
     qrels_path = os.path.join(DATA_DIR, "valid.tsv")
 
+    # Vérification de l'existence des fichiers de données
     if not os.path.exists(corpus_path):
         print(f"Fichier manquant  {corpus_path}")
         return
@@ -162,6 +171,7 @@ def main():
     nb_pairs = sum(len(cands) for cands in qrels.values())
     print(f"Total de paires requête document  {nb_pairs}")
 
+    # Calcul de la proportion moyenne de candidats pertinents par requête
     proportions = []
     for qid, cands in qrels.items():
         labels = list(cands.values())
@@ -174,11 +184,13 @@ def main():
     example_qid = next(iter(qrels))
     example_query = queries.get(example_qid)
 
+    # Afficher les détails de la requête exemple
     if example_query is not None:
         query_text = example_query.get("text", "")
         print(f"Identifiant de la requête  {example_qid}")
         print(f"Texte de la requête  {query_text}")
-
+    
+        # Afficher quelques candidats positifs et négatifs
         candidates = qrels[example_qid]
         positive_ids = [cid for cid, rel in candidates.items() if rel == 1]
         negative_ids = [cid for cid, rel in candidates.items() if rel == 0]
@@ -198,7 +210,7 @@ def main():
         print("Identifiant introuvable dans la requête dans queries", example_qid)
 
     # choix de la variante creuse
-    # mets "bow" pour CountVectorizer, "tfidf" pour TF IDF
+    # mettre "bow" pour CountVectorizer, "tfidf" pour TF IDF
     variant = "tfidf"
 
     if variant == "bow":
@@ -212,6 +224,7 @@ def main():
 
     print_top_terms_in_corpus(X, vectorizer, top_n=20)
 
+    # Afficher les caractéristiques vectorielles d'un document exemple
     if doc_ids:
         example_doc_idx = 0
         example_doc_id = doc_ids[example_doc_idx]
@@ -222,6 +235,7 @@ def main():
         print(text)
         print_vector_features(X[example_doc_idx], vectorizer, top_n=15)
 
+    # Tester le moteur creux sur la requête exemple
     if example_query is not None:
         print("\nTest du moteur creux sur requête exemple")
         candidates_for_example = list(qrels[example_qid].keys())
@@ -250,18 +264,20 @@ def main():
         print("AUC non calculable")
 
     print("\nRecherche sur tout le corpus")
-    query_text_free = "sentiment analysis financial microblogs"
+    query_text_free = "sentiment analysis financial microblogs" # exemple de requête en texte libre
     print(f"Requête  {query_text_free}")
 
+    # Effectuer la recherche en texte libre
     results = search_free_text(
         query_text=query_text_free,
         vectorizer=vectorizer,
         X=X,
         doc_ids=doc_ids,
         corpus=corpus,
-        top_k=10,
+        top_k=10, # nombre de résultats à retourner
     )
 
+    # Afficher les résultats de la recherche
     for rank, (doc_id, score, text) in enumerate(results, start=1):
         short_text = text if len(text) < 120 else text[:117] + "..."
         print(f"{rank:2d}. score {score:.3f}  {doc_id}  {short_text}")

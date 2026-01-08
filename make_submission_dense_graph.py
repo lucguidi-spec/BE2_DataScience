@@ -17,7 +17,10 @@ INPUT_FILE = os.path.join(DATA_DIR, "sample_submission.csv")
 # fichier crée
 OUTPUT_FILE = os.path.join(DATA_DIR, "submission_dense_graph.csv")
 
+# chemin pour stocker/charger les embeddings du corpus
 EMB_PATH = os.path.join(DATA_DIR, "corpus_embeddings_all_MiniLM_L6_v2.pkl")
+
+# modèle à utiliser
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
@@ -64,6 +67,7 @@ def main():
 
     print(f"Nombre de lignes lues (sans l en tête)  {len(rows)}")
 
+    # Construire ou charger les embeddings du corpus
     print("\nChargement ou construction des embeddings du corpus")
     doc_ids, embeddings = build_or_load_embeddings(
         corpus,
@@ -74,7 +78,7 @@ def main():
     print(f"Forme des embeddings de base  {embeddings.shape}")
     doc_index = build_doc_index(doc_ids)
 
-
+    # Construire le graphe de citations (corpus + requêtes)
     print("\nConstruction du graphe de citations (corpus + requêtes)")
     G = build_citation_graph(corpus, queries, include_query_edges=True)
 
@@ -88,14 +92,17 @@ def main():
     )
     print(f"Forme des embeddings enrichis  {enhanced_embeddings.shape}")
 
+    # Charger le modèle de phrases
     print(f"\nChargement du modèle de phrases  {MODEL_NAME}")
     model = SentenceTransformer(MODEL_NAME)
 
+    # Calcul des scores pour toutes les paires (requête, document)
     query_emb_cache: dict[str, np.ndarray | None] = {}
 
     out_rows = []
 
-    print("\nCalcul des scores (dense + structure) pour toutes les paires")
+    # Calcul des scores (dense + structure) pour toutes les paires
+    print("\nCalcul des scores pour toutes les paires")
     for row_id, qid, cid in rows:
         # embedding de la requête
         if qid not in query_emb_cache:
@@ -133,6 +140,7 @@ def main():
             }
         )
 
+    # Création du fichier de soumission
     print(f"\nCréation fichier de soumission  {OUTPUT_FILE}")
     with open(OUTPUT_FILE, "w", encoding="utf-8", newline="") as f:
         fieldnames = ["RowId", "query-id", "corpus-id", "score"]

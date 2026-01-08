@@ -10,14 +10,18 @@ from src.dense_encoder import build_or_load_embeddings, get_document_text
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+
+# chemin pour stocker/charger les embeddings du corpus
 EMB_PATH = os.path.join(DATA_DIR, "corpus_embeddings_all_MiniLM_L6_v2.pkl")
+
+# modèle à utiliser
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-
+# construction d'un index pour accéder rapidement aux embeddings des documents
 def build_doc_index(doc_ids):
     return {doc_id: i for i, doc_id in enumerate(doc_ids)}
 
-
+# fonction de classement des candidats pour une requête donnée
 def rank_candidates_for_query_dense(
     query_text,
     candidate_ids,
@@ -49,13 +53,14 @@ def rank_candidates_for_query_dense(
     if not rows:
         return []
 
-    emb_sub = embeddings[rows]       
+    emb_sub = embeddings[rows]       # sous-matrice des embeddings des candidats
     scores = emb_sub @ q_emb         # produit scalaire car tous les vecteurs sont normalisés
 
+    # tri des candidats par score décroissant
     ranked = sorted(zip(row_cids, scores), key=lambda x: x[1], reverse=True)
     return ranked
 
-
+# évaluation du moteur dense sur un ensemble de jugements de pertinence
 def evaluate_dense_on_qrels(
     queries,
     qrels,
@@ -63,7 +68,7 @@ def evaluate_dense_on_qrels(
     doc_ids,
     model,
 ):
-
+    # construction de l'index des documents
     doc_index = build_doc_index(doc_ids)
 
     per_query_precisions = []
@@ -73,11 +78,13 @@ def evaluate_dense_on_qrels(
     all_scores = []
     all_labels = []
 
+    # boucle sur les requêtes avec jugements de pertinence
     for qid, cand_dict in qrels.items():
         query = queries.get(qid)
         if query is None:
             continue
 
+        # texte de la requête
         query_text = query.get("text") or query.get("title") or ""
         candidate_ids = list(cand_dict.keys())
 
@@ -103,6 +110,7 @@ def evaluate_dense_on_qrels(
         # pour avoir une prédiction binaire
         y_pred = (y_scores >= 0.5).astype(int)
 
+        # calcul des métriques pour cette requête
         p, r, f1, _ = precision_recall_fscore_support(
             y_true,
             y_pred,
@@ -121,6 +129,7 @@ def evaluate_dense_on_qrels(
     mean_recall = float(np.mean(per_query_recalls)) if per_query_recalls else 0.0
     mean_f1 = float(np.mean(per_query_f1)) if per_query_f1 else 0.0
 
+    # calcul de l'AUC globale
     if all_labels and len(set(all_labels)) > 1:
         auc = roc_auc_score(all_labels, all_scores)
     else:
@@ -128,7 +137,7 @@ def evaluate_dense_on_qrels(
 
     return mean_precision, mean_recall, mean_f1, auc
 
-
+# fonction de recherche libre dense
 def search_free_text_dense(
     query_text,
     model,
@@ -151,6 +160,7 @@ def search_free_text_dense(
 
     top_idx = np.argsort(scores)[::-1][:top_k]
 
+    # récupération des documents correspondants
     results = []
     for idx in top_idx:
         doc_id = doc_ids[idx]
@@ -253,12 +263,13 @@ def main():
             build_doc_index(doc_ids),
         )
 
+        # affichage des cinq meilleurs candidats
         print("Top cinq candidats")
         for cid, score in ranked_example[:5]:
             label = qrels[example_qid][cid]
             doc = corpus.get(cid, {})
             text = get_document_text(doc)
-            short_text = text if len(text) < 120 else text[:117] + "..."
+            short_text = text if len(text) < 120 else text[:117] + "..." # tronqué
             print(f"- label {label}  score {score:.3f}  {short_text}")
 
     # évaluation globale

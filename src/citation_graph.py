@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 from typing import Dict, Tuple, List, Optional
 
-
+# Construire un graphe de citation à partir d'un corpus et de requêtes optionnelles
 def build_citation_graph(
     corpus: Dict[str, Dict],
     queries: Optional[Dict[str, Dict]] = None,
@@ -60,7 +60,7 @@ def build_citation_graph(
 
     return G
 
-
+# Calculer des statistiques de base sur le graphe
 def basic_graph_stats(G: nx.DiGraph) -> Dict[str, float]:
 
     num_nodes = G.number_of_nodes()
@@ -81,14 +81,14 @@ def basic_graph_stats(G: nx.DiGraph) -> Dict[str, float]:
     }
     return stats
 
-
+# Obtenir le titre d'un nœud pour l'affichage
 def _node_title(
     node_id: str,
     corpus: Dict[str, Dict],
     queries: Optional[Dict[str, Dict]] = None,
     max_len: int = 100,
 ) -> str:
-
+    # rechercher le document dans le corpus ou les requêtes
     doc = None
     if node_id in corpus:
         doc = corpus[node_id]
@@ -98,16 +98,17 @@ def _node_title(
         title = doc.get("title") or doc.get("text") or ""
     else:
         title = ""
-
+    
     if not title:
         return "(titre nc)"
 
+    # nettoyer et tronquer le titre
     title = title.replace("\n", " ").strip()
     if len(title) > max_len:
         return title[: max_len - 3] + "..."
     return title
 
-
+# Calculer des mesures de centralité et afficher les nœuds les plus centraux
 def compute_centrality_measures(
     G: nx.DiGraph,
     corpus: Dict[str, Dict],
@@ -135,6 +136,7 @@ def compute_centrality_measures(
         betweenness.items(), key=lambda x: x[1], reverse=True
     )[:top_k]
 
+    # affichage des résultats
     for measure_name, top_nodes in centralities.items():
         print(f"\nTop {top_k} nœuds selon  {measure_name}")
         for node_id, score in top_nodes:
@@ -144,7 +146,7 @@ def compute_centrality_measures(
     return centralities
 
 
-
+# Améliorer les embeddings de documents en utilisant la structure du graphe
 def build_graph_enhanced_embeddings(
     G: nx.DiGraph,
     doc_ids: List[str],
@@ -163,12 +165,14 @@ def build_graph_enhanced_embeddings(
         # voisins = prédécesseurs U successeurs
         neighbors = set(G.predecessors(doc_id)) | set(G.successors(doc_id))
 
+        # récupérer les embeddings des voisins présents dans le corpus
         neighbor_vecs = []
         for n in neighbors:
             j = id_to_idx.get(n)
             if j is not None:
                 neighbor_vecs.append(embeddings[j])
 
+        # calculer le nouvel embedding
         if neighbor_vecs:
             neigh_mean = np.mean(neighbor_vecs, axis=0)
             vec = alpha * embeddings[i] + (1.0 - alpha) * neigh_mean
